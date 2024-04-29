@@ -1,3 +1,15 @@
+# file contains conda env name
+.env
+
+# temporary scripts for verifying the ideas
+scripts/temp_*
+
+# data 
+./data/*
+
+# local tools
+.local/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
