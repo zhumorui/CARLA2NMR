@@ -1,0 +1,1 @@
+pipreqs /home/morin/ZHITAI_SSD/projects/CARLA2NMR/ --force
