@@ -1,6 +1,9 @@
 # file contains conda env name
 .env
 
+# vscode settings
+.vscode
+
 # temporary scripts for verifying the ideas
 scripts/temp_*
 
