@@ -1,0 +1,9 @@
+lxml==5.2.1
+matplotlib==3.8.4
+numpy==1.26.4
+open3d==0.18.0
+opencv_python==4.9.0.80
+pandas==2.2.2
+pyntcloud==0.3.1
+Requests==2.31.0
+scipy==1.13.0
