@@ -15,7 +15,7 @@ class Model:
         self.points3D = []
         self.__vis = None
 
-    def read_model(self, path, ext=""):
+    def read_model(self, path, ext=None):
         path = os.path.join(path, "sparse/0")
         self.cameras, self.images, self.points3D = read_model(path, ext)
     
@@ -267,13 +267,13 @@ def parse_args():
         description="Visualize COLMAP binary and text models"
     )
     parser.add_argument(
-        "--input_model", default='/home/morin/ZHITAI_SSD/projects/monopointcloud/_out/sequences/04_23_15_38_23/carla_12_20_rgb_1_1/', help="path to input model folder"
+        "--input_model", default='/Users/morin/carla_12_20_rgb_1_1', help="path to input model folder"
     )
     parser.add_argument(
         "--input_format",
         choices=[".bin", ".txt"],
         help="input model format",
-        default="",
+        default=".txt",
     )
     args = parser.parse_args()
     return args
@@ -297,7 +297,7 @@ def main():
 
 
     # load local lidar point cloud
-    lidar_pcd_path = ("/home/morin/ZHITAI_SSD/projects/monopointcloud/_out/sequences/04_23_15_38_23/carla_12_20_rgb_1_1/lidar/0150.ply")
+    lidar_pcd_path = ("/Users/morin/carla_12_20_rgb_1_1/lidar/0150.ply")
     model.lidar_pcd(lidar_pcd_path)
     # add coordinate frame
     # model.add_coordinates()
