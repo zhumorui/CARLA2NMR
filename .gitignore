@@ -1,6 +1,10 @@
 # file contains conda env name
 .env
 
+# MacOS
+.DS_store
+
+
 # vscode settings
 .vscode
 
