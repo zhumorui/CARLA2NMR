@@ -7,7 +7,7 @@ import threading
 import time
 from src.model.model import Model
 import numpy as np
-
+from src.utils.utils import filter_point_cloud
 
 isMacOS = (platform.system() == "Darwin")
 
@@ -17,6 +17,7 @@ class CARLA2NMR_App:
     MENU_SHOW_CAMERA = 3
     MENU_SHOW_LIDAR = 4
     MENU_SHOW_SETTING = 5
+    MENU_SHOW_FILTERED_LIDAR = 6
 
     def __init__(self):
         self.model = None
@@ -43,6 +44,7 @@ class CARLA2NMR_App:
             view_menu = gui.Menu()
             view_menu.add_item("Show Camera", CARLA2NMR_App.MENU_SHOW_CAMERA)
             view_menu.add_item("Show Lidar", CARLA2NMR_App.MENU_SHOW_LIDAR)
+            view_menu.add_item("Show Filtered Lidar", CARLA2NMR_App.MENU_SHOW_FILTERED_LIDAR)
             actions_menu = gui.Menu()
             actions_menu.add_item("Show Settings", CARLA2NMR_App.MENU_SHOW_SETTING)
             if not isMacOS:
@@ -76,6 +78,8 @@ class CARLA2NMR_App:
                                                 self._on_menu_show_lidar)
         self.window.set_on_menu_item_activated(CARLA2NMR_App.MENU_SHOW_SETTING,
                                                 self._on_menu_show_settings)
+        self.window.set_on_menu_item_activated(CARLA2NMR_App.MENU_SHOW_FILTERED_LIDAR,
+                                                self._on_menu_show_filtered_lidar)
 
         # Set widgets
         em = self.window.theme.font_size
@@ -171,9 +175,26 @@ class CARLA2NMR_App:
         pcd = self.model.add_lidar(idx)
         mat = rendering.MaterialRecord()
         mat.shader = "defaultLit"
-        mat.base_color = [1, 1, 1, 1]
+        mat.base_color = [10, 1, 1, 1]
         self.scene.scene.remove_geometry("lidar")
         self.scene.scene.add_geometry("lidar", pcd, mat)
+
+    
+    def _on_menu_show_filtered_lidar(self, idx=None):
+        pcd = self.model.add_lidar(idx)
+        mat = rendering.MaterialRecord()
+        mat.shader = "defaultLit"
+        mat.base_color = [1, 1, 1, 1]
+
+        # filter point cloud
+        if idx is None:
+            idx = 0
+        pose = self.model.poses[idx]
+        cam = self.model.cameras[pose[-1]]
+        filter_point_cloud(pcd, cam, pose)
+
+        # self.scene.scene.remove_geometry("filtered_lidar")
+        # self.scene.scene.add_geometry("filtered_lidar", filtered_pcd, mat)
 
     def _on_menu_show_settings(self):
         pass
