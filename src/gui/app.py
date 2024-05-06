@@ -6,6 +6,8 @@ import random
 import threading
 import time
 from src.model.model import Model
+import numpy as np
+
 
 isMacOS = (platform.system() == "Darwin")
 
@@ -13,7 +15,8 @@ class CARLA2NMR_App:
     MENU_QUIT = 1
     MENU_LOAD_FILE = 2
     MENU_SHOW_CAMERA = 3
-    MENU_SHOW_IMAGE = 4
+    MENU_SHOW_LIDAR = 4
+    MENU_SHOW_SETTING = 5
 
     def __init__(self):
         self.model = None
@@ -21,12 +24,12 @@ class CARLA2NMR_App:
             "CARLA2NMR Viewer", 1024, 768)
         self.scene = gui.SceneWidget()
         self.scene.scene = rendering.Open3DScene(self.window.renderer)
-        self.scene.scene.set_background([1, 1, 1, 1])
-        self.scene.scene.scene.set_sun_light(
-            [-1, -1, -1],  # direction
-            [1, 1, 1],  # color
-            100000)  # intensity
-        self.scene.scene.scene.enable_sun_light(True)
+        # self.scene.scene.set_background([1, 1, 1, 1])
+        # self.scene.scene.scene.set_sun_light(
+        #     [-1, -1, -1],  # direction
+        #     [1, 1, 1],  # color
+        #     100000)  # intensity
+        # self.scene.scene.scene.enable_sun_light(True)
         self.window.add_child(self.scene)
 
         # The menu is global (because the macOS menu is global), so only create
@@ -36,9 +39,12 @@ class CARLA2NMR_App:
                 app_menu = gui.Menu()
                 app_menu.add_item("Quit", CARLA2NMR_App.MENU_QUIT)
             file_menu = gui.Menu()
-            file_menu.add_item("Open Dir", CARLA2NMR_App.MENU_LOAD_FILE)
+            file_menu.add_item("Open Dir...", CARLA2NMR_App.MENU_LOAD_FILE)
             view_menu = gui.Menu()
             view_menu.add_item("Show Camera", CARLA2NMR_App.MENU_SHOW_CAMERA)
+            view_menu.add_item("Show Lidar", CARLA2NMR_App.MENU_SHOW_LIDAR)
+            actions_menu = gui.Menu()
+            actions_menu.add_item("Show Settings", CARLA2NMR_App.MENU_SHOW_SETTING)
             if not isMacOS:
                 file_menu.add_separator()
                 file_menu.add_item("Quit", CARLA2NMR_App.MENU_QUIT)
@@ -66,8 +72,54 @@ class CARLA2NMR_App:
                                                self._on_menu_filedlg)
         self.window.set_on_menu_item_activated(CARLA2NMR_App.MENU_SHOW_CAMERA,
                                                 self._on_menu_show_camera)
-        # self.window.set_on_menu_item_activated(CARLA2NMR_App.MENU_SHOW_IMAGE,
-        #                                         self._on_menu_show_image)
+        self.window.set_on_menu_item_activated(CARLA2NMR_App.MENU_SHOW_LIDAR,
+                                                self._on_menu_show_lidar)
+        self.window.set_on_menu_item_activated(CARLA2NMR_App.MENU_SHOW_SETTING,
+                                                self._on_menu_show_settings)
+
+        # Set widgets
+        em = self.window.theme.font_size
+        self._pannel = gui.Vert(0, gui.Margins(0.25*em,0.25*em,0.25*em,0.254*em))
+
+        
+        # Set Slider 
+        slider = gui.Slider(gui.Slider.INT)
+        slider.set_limits(0, 149)
+        slider.set_on_value_changed(self._on_slider)
+        self._pannel.add_child(slider)
+
+        self._button = gui.Button("button")
+
+        # 布局回调函数
+        self.window.set_on_layout(self._on_layout)
+        self.window.add_child(self._pannel)
+        self.window.add_child(self._button)
+
+    def _on_layout(self, layout_context):
+        #   在on_layout回调函数中应正确设置所有子对象的框架(position + size)，
+        #   回调结束之后才会布局孙子对象。
+
+        r = self.window.content_rect
+        self.scene.frame = r
+
+        pannel_width = 17*layout_context.theme.font_size
+        pannel_height = min(
+            r.height, self._pannel.calc_preferred_size(
+                layout_context, gui.Widget.Constraints()).height
+        )
+        self._pannel.frame = gui.Rect(r.get_right()-pannel_width,r.y,pannel_width,pannel_height)
+
+        button_pref = self._button.calc_preferred_size(
+            layout_context, gui.Widget.Constraints())
+        self._button.frame = gui.Rect(r.x,r.get_bottom()-button_pref.height, button_pref.width,button_pref.height)
+        print(r.x,r.y)
+
+
+    def _on_slider(self, new_val):
+        self._on_menu_show_lidar(int(new_val))
+
+
+
 
     def _on_menu_quit(self):
         gui.Application.instance.quit()
@@ -89,11 +141,39 @@ class CARLA2NMR_App:
         self.window.close_dialog()
 
     def _on_menu_show_camera(self):
-        frames = self.model.add_cameras()
+        cams_axis, cams_mesh, cams_line_set = self.model.add_cameras()
         self.scene.scene.clear_geometry()
-        for id, cam in zip(range(10), frames[:10]):
-            self.scene.scene.add_model(f"camera_{id}", cam)
-        
 
-    def _on_menu_show_image(self):
+        mat_axis = rendering.MaterialRecord()
+        mat_axis.shader = "defaultLit"
+        mat_axis.base_color = [1, 1, 1, 1]
+        for id, axis in enumerate(cams_axis):
+            self.scene.scene.add_geometry(f"axis{id}", axis, mat_axis)
+
+        mat_mesh = rendering.MaterialRecord()
+
+        for id, mesh in enumerate(cams_mesh):
+            texture = np.asarray(mesh.textures[0]).copy()
+            texture = o3d.geometry.Image(texture)
+            mat_mesh.albedo_img = texture 
+
+            self.scene.scene.add_geometry(f"mesh{id}", mesh, mat_mesh)
+
+
+        mat_line_set = rendering.MaterialRecord()
+        mat_line_set.shader = "defaultLit"
+        mat_line_set.base_color = [1, 1, 1, 1]
+
+        for id, line_set in enumerate(cams_line_set):
+            self.scene.scene.add_geometry(f"line_set{id}", line_set, mat_line_set)
+
+    def _on_menu_show_lidar(self, idx=None):
+        pcd = self.model.add_lidar(idx)
+        mat = rendering.MaterialRecord()
+        mat.shader = "defaultLit"
+        mat.base_color = [1, 1, 1, 1]
+        self.scene.scene.remove_geometry("lidar")
+        self.scene.scene.add_geometry("lidar", pcd, mat)
+
+    def _on_menu_show_settings(self):
         pass

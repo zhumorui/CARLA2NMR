@@ -41,7 +41,9 @@ class Model:
 
     # add camera trajectories, add image textures if available
     def add_cameras(self, scale=1):
-        frames = []
+        cams_axis =[]
+        cams_mesh = []
+        cams_line_set = []
         for img, pose in zip(self.images, self.poses):
             # rotation
             R = qvec2rotmat(pose[0])
@@ -81,11 +83,60 @@ class Model:
             K[1, 2] = cy
 
             # create axis, plane and pyramed geometries that will be drawn
-            cam_model = draw_camera(K, R, t, cam.width, cam.height, scale, img_path=img)
-            frames.extend(cam_model)
+            axis, mesh, line_set = draw_camera(K, R, t, cam.width, cam.height, scale, img_path=img)
+            cams_axis.append(axis)
+            cams_mesh.append(mesh)
+            cams_line_set.append(line_set)
         
-        return frames
+        return cams_axis, cams_mesh, cams_line_set
     
+    def add_lidar(self, idx):
+        if idx is None:
+            idx = 0
+        pcd = o3d.io.read_point_cloud(self.lidars[idx])
+
+        # reverse y
+        T = np.array([[1, 0, 0, 0],
+                      [0, -1, 0, 0],
+                      [0, 0, 1, 0],
+                      [0, 0, 0, 1]])
+        pcd.transform(T)
+
+
+
+        # (x, y, z) -> (z, -x, -y) coordinate transformation
+        T = np.array([[0, -1, 0, 0],          
+                      [0, 0, -1, 0],
+                      [1, 0, 0, 0],
+                      [0, 0, 0, 1]]
+            )
+
+        pcd.transform(T)
+
+
+        # apply w2c transformation
+        T = self.get_transform(idx)
+        pcd.transform(T)
+
+        return pcd
+
+    def get_transform(self, idx):
+        pose = self.poses[idx]
+        R = qvec2rotmat(pose[0])
+        t = pose[1]
+
+        # invert
+        t = -R.T @ t
+        R = R.T
+
+        
+        # 4x4 transformation
+        T = np.column_stack((R, t))
+        T = np.vstack((T, (0, 0, 0, 1)))
+
+        return T
+
+
 if __name__ == "__main__":
     model = Model('/Users/morin/carla_12_20_rgb_1_1/', ext=".txt")
     cameras = model.add_cameras()
