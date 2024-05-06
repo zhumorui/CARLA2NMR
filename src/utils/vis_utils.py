@@ -106,4 +106,4 @@ def draw_camera(K, R, t, w, h, scale=1, color=[0.8, 0.2, 0.8], img_path=None):
     line_set.colors = o3d.utility.Vector3dVector(colors)
 
     # return as list in o3d format
-    return [axis, mesh, line_set]
+    return axis, mesh, line_set
