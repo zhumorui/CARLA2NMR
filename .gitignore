@@ -4,9 +4,8 @@
 # MacOS
 .DS_store
 
-
 # vscode settings
-.vscode
+.vscode/
 
 # temporary scripts for verifying the ideas
 scripts/temp_*
@@ -16,6 +15,10 @@ scripts/temp_*
 
 # local tools
 .local/
+
+# files
+*.json
+*.png
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
