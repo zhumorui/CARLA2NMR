@@ -35,3 +35,24 @@ images:
 masks: 
 
 ['/Users/morin/carla_12_20_rgb_1_1/mask/0001.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0002.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0003.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0004.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0005.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0006.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0007.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0008.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0009.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0010.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0011.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0012.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0013.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0014.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0015.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0016.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0017.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0018.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0019.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0020.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0021.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0022.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0023.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0024.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0025.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0026.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0027.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0028.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0029.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0030.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0031.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0032.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0033.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0034.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0035.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0036.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0037.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0038.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0039.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0040.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0041.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0042.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0043.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0044.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0045.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0046.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0047.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0048.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0049.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0050.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0051.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0052.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0053.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0054.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0055.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0056.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0057.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0058.png.png', '/Users/morin/carla_12_20_rgb_1_1/mask/0059.png.png', ...]
+
+
+TODO：
+增加show_lidar widget, 使其可以通过滑动条的方式选择特定的lidar pcd
+Actions:
+    Show Settings
+
+
+
+Settings:
+保留draw当中的
+Mouse controls:
+    -
+    -
+
+Scene:
+    - select lidar （滑动条）
+
+
+修复mesh上图像倒置的问题
+计算图像2d 到3D点的投射， filter lidar pcd
