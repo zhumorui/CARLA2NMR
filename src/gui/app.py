@@ -168,7 +168,6 @@ class CARLA2NMR_App:
         pcd = self.model.add_lidar(idx)
         mat = rendering.MaterialRecord()
         mat.shader = "defaultLit"
-        mat.base_color = [1, 1, 1, 1]
         self.scene.scene.remove_geometry("lidar")
         self.scene.scene.add_geometry("lidar", pcd, mat)
 
