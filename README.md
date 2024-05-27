@@ -55,4 +55,4 @@ Scene:
 
 
 修复mesh上图像倒置的问题
-计算图像2d 到3D点的投射， filter lidar pcd
+计算图像2d 到3D点的投射， filter lidar pcd (今晚待解决的问题)

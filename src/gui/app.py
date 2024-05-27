@@ -22,15 +22,15 @@ class CARLA2NMR_App:
     def __init__(self):
         self.model = None
         self.window = gui.Application.instance.create_window(
-            "CARLA2NMR Viewer", 1024, 768)
+            "CARLA2NMR Viewer", 1280, 720)
         self.scene = gui.SceneWidget()
         self.scene.scene = rendering.Open3DScene(self.window.renderer)
-        # self.scene.scene.set_background([1, 1, 1, 1])
-        # self.scene.scene.scene.set_sun_light(
-        #     [-1, -1, -1],  # direction
-        #     [1, 1, 1],  # color
-        #     100000)  # intensity
-        # self.scene.scene.scene.enable_sun_light(True)
+
+        # Disable lighting to avoid reflections
+        self.scene.scene.scene.set_sun_light([0, 0, 0], [0, 0, 0], 0)
+        self.scene.scene.scene.enable_sun_light(False)
+
+
         self.window.add_child(self.scene)
 
         # The menu is global (because the macOS menu is global), so only create
@@ -92,12 +92,14 @@ class CARLA2NMR_App:
         slider.set_on_value_changed(self._on_slider)
         self._pannel.add_child(slider)
 
-        self._button = gui.Button("button")
+
+        self._button = gui.Button("Set Default Camera View")
+        self._button.set_on_clicked(self._set_default_camera_view)
+        self._pannel.add_child(self._button)
 
         # 布局回调函数
         self.window.set_on_layout(self._on_layout)
         self.window.add_child(self._pannel)
-        self.window.add_child(self._button)
 
     def _on_layout(self, layout_context):
         #   在on_layout回调函数中应正确设置所有子对象的框架(position + size)，
@@ -121,9 +123,6 @@ class CARLA2NMR_App:
 
     def _on_slider(self, new_val):
         self._on_menu_show_lidar(int(new_val))
-
-
-
 
     def _on_menu_quit(self):
         gui.Application.instance.quit()
@@ -163,10 +162,9 @@ class CARLA2NMR_App:
 
             self.scene.scene.add_geometry(f"mesh{id}", mesh, mat_mesh)
 
-
         mat_line_set = rendering.MaterialRecord()
-        mat_line_set.shader = "defaultLit"
-        mat_line_set.base_color = [1, 1, 1, 1]
+        mat_line_set.shader = "unlitLine"
+        mat_line_set.line_width = 1 
 
         for id, line_set in enumerate(cams_line_set):
             self.scene.scene.add_geometry(f"line_set{id}", line_set, mat_line_set)
@@ -178,6 +176,7 @@ class CARLA2NMR_App:
         mat.base_color = [10, 1, 1, 1]
         self.scene.scene.remove_geometry("lidar")
         self.scene.scene.add_geometry("lidar", pcd, mat)
+        
 
     
     def _on_menu_show_filtered_lidar(self, idx=None):
@@ -198,3 +197,45 @@ class CARLA2NMR_App:
 
     def _on_menu_show_settings(self):
         pass
+
+    def _set_default_camera_view(self):
+        try:
+            W2C = self.model.get_transform(0)
+            K = self.model.get_intrinsics(0)
+        except:
+            W2C = None
+            K = None
+
+        if W2C is not None and K is not None:
+            # Extract rotation (R) and translation (t) from the W2C matrix
+            R = W2C[:3, :3]
+            t = W2C[:3, 3]
+
+            # Create extrinsic matrix for Open3D
+            extrinsic = np.eye(4)
+            extrinsic[:3, :3] = R
+            extrinsic[:3, 3] = t
+
+            # Get intrinsic parameters from K
+            fx = K[0, 0]
+            fy = K[1, 1]
+            cx = K[0, 2]
+            cy = K[1, 2]
+
+            # Create intrinsic matrix for Open3D
+            intrinsic = o3d.camera.PinholeCameraIntrinsic()
+            intrinsic.set_intrinsics(
+                width=1280, height=720, fx=fx, fy=fy, cx=cx, cy=cy
+            )
+
+            # Get bounding box of the scene
+            bounds = self.scene.scene.bounding_box
+
+            # Setup camera with the extrinsic matrix (W2C should be the inverse of the camera pose)
+            self.scene.setup_camera(intrinsic, np.linalg.inv(W2C), bounds)
+        else:
+            # Default behavior if no W2C matrix is provided
+            bounds = self.scene.scene.bounding_box
+            self.scene.setup_camera(60.0, bounds, bounds.get_center())
+            self.scene.look_at(bounds.get_center(), bounds.get_center() + [0, 0, -1], [0, 1, 0])
+

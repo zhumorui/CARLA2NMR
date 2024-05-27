@@ -6,6 +6,7 @@ import numpy as np
 import open3d as o3d
 from src.utils.colmap.python.read_write_model import read_model, write_model, qvec2rotmat, rotmat2qvec
 from src.utils.vis_utils import draw_camera
+from src.utils.pcd_utils import filter_point_cloud_with_image
 
 class Model:
     def __init__(self,model_path, ext=None):
@@ -93,32 +94,38 @@ class Model:
     def add_lidar(self, idx):
         if idx is None:
             idx = 0
-        pcd = o3d.io.read_point_cloud(self.lidars[idx])
-
-        # reverse y
-        T = np.array([[1, 0, 0, 0],
-                      [0, -1, 0, 0],
-                      [0, 0, 1, 0],
-                      [0, 0, 0, 1]])
-        pcd.transform(T)
 
 
+        #  completed lidar point cloud (unfiltered) 
 
-        # (x, y, z) -> (z, -x, -y) coordinate transformation
-        T = np.array([[0, -1, 0, 0],          
-                      [0, 0, -1, 0],
-                      [1, 0, 0, 0],
-                      [0, 0, 0, 1]]
-            )
+        # pcd = o3d.io.read_point_cloud(self.lidars[idx])
 
-        pcd.transform(T)
+        # # reverse y
+        # T = np.array([[1, 0, 0, 0],
+        #               [0, -1, 0, 0],
+        #               [0, 0, 1, 0],
+        #               [0, 0, 0, 1]])
+        # pcd.transform(T)
+
+        # # (x, y, z) -> (z, -x, -y) coordinate transformation
+        # T = np.array([[0, -1, 0, 0],          
+        #               [0, 0, -1, 0],
+        #               [1, 0, 0, 0],
+        #               [0, 0, 0, 1]]
+        #     )
+
+        # pcd.transform(T)
 
 
-        # apply w2c transformation
-        T = self.get_transform(idx)
-        pcd.transform(T)
+        # # apply w2c transformation
+        # T = self.get_transform(idx)
+        # pcd.transform(T)
 
-        return pcd
+        if True:
+            filtered_pcd = filter_point_cloud_with_image(self.lidars[idx], self.images[idx], self.cameras[self.poses[idx][2]])
+            T = self.get_transform(idx)
+            filtered_pcd.transform(T)
+        return filtered_pcd
 
     def get_transform(self, idx):
         pose = self.poses[idx]
@@ -136,6 +143,35 @@ class Model:
 
         return T
 
+    # get camera intrinsics
+    def get_intrinsics(self, idx):
+        cam = self.cameras[self.poses[idx][2]]
+
+        if cam.model in ("SIMPLE_PINHOLE", "SIMPLE_RADIAL", "RADIAL"):
+            fx = fy = cam.params[0]
+            cx = cam.params[1]
+            cy = cam.params[2]
+        elif cam.model in (
+            "PINHOLE",
+            "OPENCV",
+            "OPENCV_FISHEYE",
+            "FULL_OPENCV",
+        ):
+            fx = cam.params[0]
+            fy = cam.params[1]
+            cx = cam.params[2]
+            cy = cam.params[3]
+        else:
+            raise Exception("Camera model not supported")
+
+        # intrinsics
+        K = np.identity(3)
+        K[0, 0] = fx
+        K[1, 1] = fy
+        K[0, 2] = cx
+        K[1, 2] = cy
+
+        return K
 
 if __name__ == "__main__":
     model = Model('/Users/morin/carla_12_20_rgb_1_1/', ext=".txt")
