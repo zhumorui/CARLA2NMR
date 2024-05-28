@@ -133,12 +133,17 @@ class CARLA2NMR_App:
         self.window.close_dialog()
 
     def _on_filedlg_done(self, path):
-        self.model = Model(path, ext=".txt")
-        print(f"Load model successfully!\n{self.model}")
-        # self._on_menu_show_camera()
-        self.window.close_dialog()
+        try:
+            self.model = Model(path, ext=".txt")
+            print(f"Load model successfully!\n{self.model}")
+            self.window.close_dialog()
+        except:
+            self._show_error_dialog("Error", f"Failed to load model!")
 
     def _on_menu_show_camera(self):
+        if self.model is None:
+            self._show_error_dialog("Error", "Please load model first!")
+            return
         cams_axis, cams_mesh, cams_line_set = self.model.add_cameras()
         self.scene.scene.clear_geometry()
 
@@ -165,6 +170,9 @@ class CARLA2NMR_App:
             self.scene.scene.add_geometry(f"line_set{id}", line_set, mat_line_set)
 
     def _on_menu_show_lidar(self, idx=None):
+        if self.model is None:
+            self._show_error_dialog("Error", "Please load model first!")
+            return
         pcd = self.model.add_lidar(idx)
         mat = rendering.MaterialRecord()
         mat.shader = "defaultLit"
@@ -215,3 +223,24 @@ class CARLA2NMR_App:
             self.scene.setup_camera(60.0, bounds, bounds.get_center())
             self.scene.look_at(bounds.get_center(), bounds.get_center() + [0, 0, -1], [0, 1, 0])
 
+
+    def _show_error_dialog(self, title, message):
+        dialog = gui.Dialog(title)
+        em = self.window.theme.font_size
+        margins = gui.Margins(em, em, em, em)
+        layout = gui.Vert(0, margins)
+        
+        label = gui.Label(message)
+        layout.add_child(label)
+        
+        button_layout = gui.Horiz(0.25 * em)
+        button_layout.add_stretch()
+
+        ok_button = gui.Button("OK")
+        ok_button.set_on_clicked(self.window.close_dialog)
+        button_layout.add_child(ok_button)
+
+        layout.add_child(button_layout)
+        
+        dialog.add_child(layout)
+        self.window.show_dialog(dialog)
