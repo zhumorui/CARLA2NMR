@@ -1,6 +1,9 @@
 # file contains conda env name
 .env
 
+# submodules
+submodules/
+
 # MacOS
 .DS_store
 
