@@ -1,6 +1,10 @@
 # file contains conda env name
 .env
 
+# output
+output/
+outputs/
+
 # submodules
 submodules/
 

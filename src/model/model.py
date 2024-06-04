@@ -172,6 +172,25 @@ class Model:
         K[1, 2] = cy
 
         return K
+    
+
+    def __getitem__(self, index):
+        color_data = cv2.imread(self.images[index])
+        color_data = cv2.cvtColor(color_data, cv2.COLOR_BGR2RGB)
+
+        mask_data = cv2.imread(self.masks[index])
+
+        # apply mask
+        masked_color_data = cv2.bitwise_and(color_data, mask_data * 255)
+
+        lidar = self.add_lidar(index)
+
+        return index, masked_color_data, lidar
+    
+
+    def __len__(self):
+        return len(self.images)
+    
 
 if __name__ == "__main__":
     model = Model('/Users/morin/carla_12_20_rgb_1_1/', ext=".txt")

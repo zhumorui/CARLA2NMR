@@ -1,0 +1,5 @@
+inherit_from: configs/CARLA2NMR/CARLA2NMR.yaml
+data:
+  scene_name: carla_1_1
+  input_path: data/CARLA2NMR/carla_12_20_rgb_1_1
+  output_path: output/CARLA2NMR/carla_12_20_rgb_1_1

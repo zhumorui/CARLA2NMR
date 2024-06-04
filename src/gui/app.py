@@ -7,6 +7,8 @@ import threading
 import time
 from src.model.model import Model
 import numpy as np
+from src.GS_SLAM.entities.gaussian_slam import GaussianSLAM
+import os
 
 isMacOS = (platform.system() == "Darwin")
 
@@ -18,6 +20,7 @@ class CARLA2NMR_App:
     MENU_SHOW_SETTING = 5
 
     def __init__(self):
+        self.working_dir = os.getcwd()
         self.model = None
         self.window = gui.Application.instance.create_window(
             "CARLA2NMR Viewer", 1280, 720)
@@ -87,9 +90,14 @@ class CARLA2NMR_App:
         slider.set_on_value_changed(self._on_slider)
         self._pannel.add_child(slider)
 
-
+        # Set default camera view button        
         self._button = gui.Button("Set Default Camera View")
         self._button.set_on_clicked(self._set_default_camera_view)
+        self._pannel.add_child(self._button)
+
+        # Set Gaussian SLAM button
+        self._button = gui.Button("Run Gaussian SLAM")
+        self._button.set_on_clicked(self._run_gaussian_slam)
         self._pannel.add_child(self._button)
 
         # 布局回调函数
@@ -139,6 +147,9 @@ class CARLA2NMR_App:
             self.window.close_dialog()
         except:
             self._show_error_dialog("Error", f"Failed to load model!")
+        
+        # change working directory to original
+        os.chdir(self.working_dir)
 
     def _on_menu_show_camera(self):
         if self.model is None:
@@ -244,3 +255,30 @@ class CARLA2NMR_App:
         
         dialog.add_child(layout)
         self.window.show_dialog(dialog)
+
+    def _run_gaussian_slam(self):
+        print(os.getcwd())
+        if self.model is None:
+            self._show_error_dialog("Error", "Please load model first!")
+            return
+        
+        # Gaussian SLAM config
+        config = {'project_name': 'Gaussian_SLAM_CARLA2NMR', 'dataset_name': 'CARLA2NMR', 
+                  'checkpoint_path': None, 'use_wandb': False, 'frame_limit': -1, 'seed': 0, 
+                  'mapping': {'new_submap_every': 50, 'map_every': 5, 'iterations': 100, 
+                            'new_submap_iterations': 1000, 'new_submap_points_num': 600000, 
+                            'new_submap_gradient_points_num': 50000, 'new_frame_sample_size': -1, 
+                            'new_points_radius': 1e-07, 'current_view_opt_iterations': 0.4, 
+                            'alpha_thre': 0.05, 'pruning_thre': 0.1, 'submap_using_motion_heuristic': True},
+                  'tracking': {'gt_camera': False, 'w_color_loss': 0.95, 'iterations': 60, 'cam_rot_lr': 0.0002,
+                                'cam_trans_lr': 0.002, 'odometry_type': 'gt', 'help_camera_initialization': False,
+                                  'init_err_ratio': 5, 'odometer_method': 'hybrid', 'filter_alpha': False, 
+                                  'filter_outlier_depth': True, 'alpha_thre': 0.98, 'soft_alpha': True, 'mask_invalid_depth': False},
+                   'cam': {'H': 720, 'W': 1280, 'fx': 369.504, 'fy': 369.504, 'cx': 640, 'cy': 360, 'depth_scale': 25.6}, 
+                   'inherit_from': 'configs/CARLA2NMR/CARLA2NMR.yaml', 
+                   'data': {'scene_name': 'carla_1_1', 'input_path': 'data/carla_12_20_rgb_1_1', 'output_path': 'output/CARLA2NMR/carla_12_20_rgb_1_1'}}
+        
+        # Run Gaussian SLAM
+        print("Running Gaussian SLAM...")
+        gslam = GaussianSLAM(config, dataset=self.model)
+        gslam.run()
