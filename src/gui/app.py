@@ -1,14 +1,12 @@
 import open3d as o3d
-import open3d.visualization.gui as gui # type: ignore
-import open3d.visualization.rendering as rendering # type: ignore
+import open3d.visualization.gui as gui  # type: ignore
+import open3d.visualization.rendering as rendering  # type: ignore
 import platform
-import random
 import threading
-import time
-from src.model.model import Model
-import numpy as np
-from src.GS_SLAM.entities.gaussian_slam import GaussianSLAM
 import os
+import numpy as np
+from src.model.model import Model
+from src.GS_SLAM.entities.gaussian_slam import GaussianSLAM
 
 isMacOS = (platform.system() == "Darwin")
 
@@ -261,24 +259,36 @@ class CARLA2NMR_App:
         if self.model is None:
             self._show_error_dialog("Error", "Please load model first!")
             return
-        
-        # Gaussian SLAM config
-        config = {'project_name': 'Gaussian_SLAM_CARLA2NMR', 'dataset_name': 'CARLA2NMR', 
-                  'checkpoint_path': None, 'use_wandb': False, 'frame_limit': -1, 'seed': 0, 
-                  'mapping': {'new_submap_every': 50, 'map_every': 5, 'iterations': 100, 
-                            'new_submap_iterations': 1000, 'new_submap_points_num': 600000, 
-                            'new_submap_gradient_points_num': 50000, 'new_frame_sample_size': -1, 
-                            'new_points_radius': 1e-07, 'current_view_opt_iterations': 0.4, 
-                            'alpha_thre': 0.05, 'pruning_thre': 0.1, 'submap_using_motion_heuristic': True},
+
+        config = {'project_name': 'Gaussian_SLAM_CARLA2NMR', 'dataset_name': 'CARLA2NMR',
+                  'checkpoint_path': None, 'use_wandb': False, 'frame_limit': -1, 'seed': 0,
+                  'mapping': {'new_submap_every': 50, 'map_every': 5, 'iterations': 4000,
+                              'new_submap_iterations': 1000, 'new_submap_points_num': 600000,
+                              'new_submap_gradient_points_num': 50000, 'new_frame_sample_size': -1,
+                              'new_points_radius': 1e-07, 'current_view_opt_iterations': 0.4,
+                              'alpha_thre': 0.05, 'pruning_thre': 0.1, 'submap_using_motion_heuristic': True},
                   'tracking': {'gt_camera': False, 'w_color_loss': 0.95, 'iterations': 60, 'cam_rot_lr': 0.0002,
-                                'cam_trans_lr': 0.002, 'odometry_type': 'gt', 'help_camera_initialization': False,
-                                  'init_err_ratio': 5, 'odometer_method': 'hybrid', 'filter_alpha': False, 
-                                  'filter_outlier_depth': True, 'alpha_thre': 0.98, 'soft_alpha': True, 'mask_invalid_depth': False},
-                   'cam': {'H': 720, 'W': 1280, 'fx': 369.504, 'fy': 369.504, 'cx': 640, 'cy': 360, 'depth_scale': 25.6}, 
-                   'inherit_from': 'configs/CARLA2NMR/CARLA2NMR.yaml', 
-                   'data': {'scene_name': 'carla_1_1', 'input_path': 'data/carla_12_20_rgb_1_1', 'output_path': 'output/CARLA2NMR/carla_12_20_rgb_1_1'}}
-        
-        # Run Gaussian SLAM
-        print("Running Gaussian SLAM...")
-        gslam = GaussianSLAM(config, dataset=self.model)
-        gslam.run()
+                               'cam_trans_lr': 0.002, 'odometry_type': 'gt', 'help_camera_initialization': False,
+                               'init_err_ratio': 5, 'odometer_method': 'hybrid', 'filter_alpha': False,
+                               'filter_outlier_depth': True, 'alpha_thre': 0.98, 'soft_alpha': True, 'mask_invalid_depth': False},
+                  'cam': {'H': 720, 'W': 1280, 'fx': 369.504, 'fy': 369.504, 'cx': 640, 'cy': 360, 'depth_scale': 25.6},
+                  'inherit_from': 'configs/CARLA2NMR/CARLA2NMR.yaml',
+                  'data': {'scene_name': 'carla_1_1', 'input_path': 'data/carla_12_20_rgb_1_1', 'output_path': 'output/CARLA2NMR/carla_12_20_rgb_1_1'}}
+
+        def update_gaussian_model(gaussian_model):
+            gui.Application.instance.post_to_main_thread(self.window, lambda: self.visualize_point_cloud(gaussian_model))
+
+        def run_slam():
+            print("Running Gaussian SLAM...")
+            gslam = GaussianSLAM(config, dataset=self.model)
+            gslam.run(update_callback=update_gaussian_model)
+
+        threading.Thread(target=run_slam).start()
+
+    def visualize_point_cloud(self, gaussian_model):
+        point_cloud = gaussian_model.get_point_cloud()
+        mat = rendering.MaterialRecord()
+        mat.shader = "defaultLit"
+
+        self.scene.scene.remove_geometry("3DGS")
+        self.scene.scene.add_geometry("3DGS", point_cloud, mat)

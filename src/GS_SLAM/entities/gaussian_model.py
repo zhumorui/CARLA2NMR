@@ -406,3 +406,26 @@ class GaussianModel:
         self.xyz_gradient_accum[update_filter] += torch.norm(
             viewspace_point_tensor.grad[update_filter, :2], dim=-1, keepdim=True)
         self.denom[update_filter] += 1
+
+
+    def get_point_cloud(self):
+        pcd = o3d.geometry.PointCloud()
+        
+        xyz = self._xyz.detach().cpu().numpy()
+
+        SH = self._features_dc[:, 0, :].detach().cpu().numpy()
+        
+        C0 = 0.28209479177387814
+        RGB = SH * C0 + 0.5
+        
+        # 确保 RGB 数据为 np.float64 类型
+        RGB = RGB.astype(np.float64)
+        
+        # 确保 RGB 数据的形状为 (N, 3)
+        if RGB.shape[1] != 3:
+            RGB = RGB.reshape(-1, 3)
+        
+        pcd.points = o3d.utility.Vector3dVector(xyz)
+        pcd.colors = o3d.utility.Vector3dVector(RGB)
+        
+        return pcd

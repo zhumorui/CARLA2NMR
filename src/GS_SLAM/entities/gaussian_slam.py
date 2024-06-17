@@ -129,7 +129,7 @@ class GaussianSLAM(object):
         self.submap_id += 1
         return gaussian_model
 
-    def run(self) -> None:
+    def run(self, update_callback=None) -> None:
         """ Starts the main program flow for Gaussian-SLAM, including tracking and mapping. """
         setup_seed(self.config["seed"])
         gaussian_model = GaussianModel(0)
@@ -137,18 +137,6 @@ class GaussianSLAM(object):
         self.submap_id = 0
 
         for frame_id in range(len(self.dataset)):
-
-
-            #*************** 这段代码是为了测试是否能够成功读取数据集， 没有实现预测C2W的功能 ******************#
-
-
-
-            # if frame_id in [0, 1]:
-            #     estimated_c2w = self.dataset[frame_id][-1]
-            # else:
-            #     estimated_c2w = self.tracker.track(
-            #         frame_id, gaussian_model,
-            #         torch2np(self.estimated_c2ws[torch.tensor([0, frame_id - 2, frame_id - 1])]))
             estimated_c2w = self.dataset.get_transform(frame_id)
             self.estimated_c2ws[frame_id] = np2torch(estimated_c2w)
 
@@ -169,4 +157,10 @@ class GaussianSLAM(object):
                     "keyframe_id": len(self.keyframes_info.keys()),
                     "opt_dict": opt_dict
                 }
+
+            # 调用回调函数以更新 Gaussian 模型
+            if update_callback:
+                update_callback(gaussian_model)
+
         save_dict_to_ckpt(self.estimated_c2ws[:frame_id + 1], "estimated_c2w.ckpt", directory=self.output_path)
+

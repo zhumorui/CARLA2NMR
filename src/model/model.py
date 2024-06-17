@@ -9,6 +9,9 @@ from src.utils.vis_utils import draw_camera
 from src.utils.pcd_utils import filter_point_cloud_with_image
 
 class Model:
+    """
+    Class to load a COLMAP model and provide some functionalities to work with it.
+    """
     def __init__(self,model_path, ext=None):
         self.cameras = []
         self.poses = []
