@@ -11,6 +11,13 @@ submodules/
 # MacOS
 .DS_store
 
+#Kiss_icp results
+results/
+kiss_icp.yaml
+
+# temporary files
+temp_test.py
+
 # vscode settings
 .vscode/
 
