@@ -98,6 +98,12 @@ class CARLA2NMR_App:
         self._button.set_on_clicked(self._run_gaussian_slam)
         self._pannel.add_child(self._button)
 
+        # Set Kiss-ICP button
+        self._button = gui.Button("Run Lidar Odometry")
+        self._button.set_on_clicked(self._run_kiss_icp)
+        self._pannel.add_child(self._button)
+
+
         # 布局回调函数
         self.window.set_on_layout(self._on_layout)
         self.window.add_child(self._pannel)
@@ -154,7 +160,6 @@ class CARLA2NMR_App:
             self._show_error_dialog("Error", "Please load model first!")
             return
         cams_axis, cams_mesh, cams_line_set = self.model.add_cameras()
-        self.scene.scene.clear_geometry()
 
         mat_axis = rendering.MaterialRecord()
         mat_axis.shader = "defaultLit"
@@ -185,8 +190,12 @@ class CARLA2NMR_App:
         pcd = self.model.add_lidar(idx)
         mat = rendering.MaterialRecord()
         mat.shader = "defaultLit"
-        self.scene.scene.remove_geometry("lidar")
-        self.scene.scene.add_geometry("lidar", pcd, mat)
+        # self.scene.scene.remove_geometry("lidar")
+        # self.scene.scene.add_geometry("lidar", pcd, mat)
+        
+        import random
+        random_name = random.randint(0, 1000)
+        self.scene.scene.add_geometry(f"lidar_{random_name}", pcd, mat)
 
     def _on_menu_show_settings(self):
         pass
@@ -292,3 +301,72 @@ class CARLA2NMR_App:
 
         self.scene.scene.remove_geometry("3DGS")
         self.scene.scene.add_geometry("3DGS", point_cloud, mat)
+
+
+    def _run_kiss_icp(self):
+        print(os.getcwd())
+        if self.model is None:
+            self._show_error_dialog("Error", "Please load model first!")
+            return
+
+        from kiss_icp.pipeline import OdometryPipeline
+        from kiss_icp.datasets import dataset_factory
+
+        # get a dir path from a file
+        dataset = dataset_factory(
+            dataloader="generic",
+            data_dir=os.path.join(self.model.lidars[0], ".."),
+            sequence=None,
+            topic=None,
+            meta=None,
+        )
+        pipeline = OdometryPipeline(dataset, visualize=False)
+
+        transform = self.model.get_transform(0)
+
+        def run_icp():
+            for idx, result in enumerate(pipeline.run()):
+                # draw the estimated camera pose
+                est_pose = result["pose"]
+
+                # Optional: Perform necessary point cloud transformation if needed
+                # Reverse y
+                T = np.array([[1, 0, 0, 0],
+                            [0, -1, 0, 0],
+                            [0, 0, 1, 0],
+                            [0, 0, 0, 1]])
+                
+                est_pose = T @ est_pose
+
+                # (x, y, z) -> (z, -x, -y) coordinate transformation
+                T = np.array([[0, -1, 0, 0],
+                            [0, 0, -1, 0],
+                            [1, 0, 0, 0],
+                            [0, 0, 0, 1]])
+
+                est_pose = T @ est_pose
+
+                # apply w2c transformation
+                est_pose = transform @ est_pose
+
+                # draw the estimated pose with coordinate
+                mesh = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.5)
+                mesh.transform(est_pose)
+                mat = rendering.MaterialRecord()
+                mat.shader = "defaultLit"
+                
+                # Update the pose in the main thread
+                gui.Application.instance.post_to_main_thread(self.window, lambda idx=idx, mesh=mesh, mat=mat: self.update_pose(idx, mesh, mat))
+        
+        threading.Thread(target=run_icp).start()
+
+    def update_pose(self, idx, mesh, mat):
+        self.scene.scene.remove_geometry(f"est_pose_{idx}")
+        self.scene.scene.add_geometry(f"est_pose_{idx}", mesh, mat)
+
+
+
+
+        
+        
+
