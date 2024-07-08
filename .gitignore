@@ -13,7 +13,6 @@ submodules/
 
 #Kiss_icp results
 results/
-kiss_icp.yaml
 
 # temporary files
 temp_test.py
