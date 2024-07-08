@@ -320,7 +320,7 @@ class CARLA2NMR_App:
             topic=None,
             meta=None,
         )
-        pipeline = OdometryPipeline(dataset, visualize=False)
+        pipeline = OdometryPipeline(dataset, config="kiss_icp.yaml", visualize=False)
 
         transform = self.model.get_transform(0)
 
