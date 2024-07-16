@@ -29,8 +29,14 @@ class CARLA2NMR_App:
         self.scene.scene.scene.set_sun_light([0, 0, 0], [0, 0, 0], 0)
         self.scene.scene.scene.enable_sun_light(False)
 
-
         self.window.add_child(self.scene)
+
+        # set lidar show
+        self.lidar_shown = False
+
+        # set camera show
+        self.camera_shown = False
+        self.camera_params = None
 
         # The menu is global (because the macOS menu is global), so only create
         # it once, no matter how many windows are created
@@ -129,7 +135,7 @@ class CARLA2NMR_App:
 
 
     def _on_slider(self, new_val):
-        self._on_menu_show_lidar(int(new_val))
+        self._on_menu_show_lidar(int(new_val), if_slider=True)
 
     def _on_menu_quit(self):
         gui.Application.instance.quit()
@@ -159,43 +165,79 @@ class CARLA2NMR_App:
         if self.model is None:
             self._show_error_dialog("Error", "Please load model first!")
             return
-        cams_axis, cams_mesh, cams_line_set = self.model.add_cameras()
+        
+        if self.camera_params is None:
+            cams_axis, cams_mesh, cams_line_set = self.model.add_cameras()
+            self.camera_params = (cams_axis, cams_mesh, cams_line_set)
 
-        mat_axis = rendering.MaterialRecord()
-        mat_axis.shader = "defaultLit"
-        mat_axis.base_color = [1, 1, 1, 1]
-        for id, axis in enumerate(cams_axis):
-            self.scene.scene.add_geometry(f"axis{id}", axis, mat_axis)
+            mat_axis = rendering.MaterialRecord()
+            mat_axis.shader = "defaultLit"
+            mat_axis.base_color = [1, 1, 1, 1]
+            for id, axis in enumerate(cams_axis):
+                self.scene.scene.add_geometry(f"axis{id}", axis, mat_axis)
+            
+            mat_mesh = rendering.MaterialRecord()
+            for id, mesh in enumerate(cams_mesh):
+                texture = np.asarray(mesh.textures[0]).copy()
+                texture = o3d.geometry.Image(texture)
+                mat_mesh.albedo_img = texture 
+                self.scene.scene.add_geometry(f"mesh{id}", mesh, mat_mesh)
 
-        mat_mesh = rendering.MaterialRecord()
+            mat_line_set = rendering.MaterialRecord()
+            mat_line_set.shader = "unlitLine"
+            mat_line_set.line_width = 1 
 
-        for id, mesh in enumerate(cams_mesh):
-            texture = np.asarray(mesh.textures[0]).copy()
-            texture = o3d.geometry.Image(texture)
-            mat_mesh.albedo_img = texture 
+            for id, line_set in enumerate(cams_line_set):
+                self.scene.scene.add_geometry(f"line_set{id}", line_set, mat_line_set)
 
-            self.scene.scene.add_geometry(f"mesh{id}", mesh, mat_mesh)
+            self.camera_shown = True
 
-        mat_line_set = rendering.MaterialRecord()
-        mat_line_set.shader = "unlitLine"
-        mat_line_set.line_width = 1 
+            return 
 
-        for id, line_set in enumerate(cams_line_set):
-            self.scene.scene.add_geometry(f"line_set{id}", line_set, mat_line_set)
+        if not self.camera_shown:
+            cams_axis, cams_mesh, cams_line_set = self.camera_params
+            for id, axis in enumerate(cams_axis):
+                self.scene.scene.show_geometry(f"axis{id}", True)
+            
+            for id, mesh in enumerate(cams_mesh):
+                self.scene.scene.show_geometry(f"mesh{id}", True)
 
-    def _on_menu_show_lidar(self, idx=None):
+            for id, line_set in enumerate(cams_line_set):
+                self.scene.scene.show_geometry(f"line_set{id}", True)
+
+            self.camera_shown = True
+        else:
+            cams_axis, cams_mesh, cams_line_set = self.camera_params
+            for id, axis in enumerate(cams_axis):
+                self.scene.scene.show_geometry(f"axis{id}", False)
+
+            for id, mesh in enumerate(cams_mesh):
+                self.scene.scene.show_geometry(f"mesh{id}", False)
+
+            for id, line_set in enumerate(cams_line_set):
+                self.scene.scene.show_geometry(f"line_set{id}", False)
+
+            self.camera_shown = False
+
+    def _on_menu_show_lidar(self, idx=None, if_slider=False):
         if self.model is None:
             self._show_error_dialog("Error", "Please load model first!")
             return
-        pcd = self.model.add_lidar(idx)
-        mat = rendering.MaterialRecord()
-        mat.shader = "defaultLit"
-        # self.scene.scene.remove_geometry("lidar")
-        # self.scene.scene.add_geometry("lidar", pcd, mat)
+        if not self.lidar_shown or if_slider:
+            pcd = self.model.add_lidar(idx)
+            mat = rendering.MaterialRecord()
+            mat.shader = "defaultLit"
+            self.scene.scene.remove_geometry("lidar")
+            self.scene.scene.add_geometry("lidar", pcd, mat)
+
+            self.lidar_shown = True
+        else:
+            self.scene.scene.show_geometry("lidar", False)
+            self.lidar_shown = False
         
-        import random
-        random_name = random.randint(0, 1000)
-        self.scene.scene.add_geometry(f"lidar_{random_name}", pcd, mat)
+        # import random
+        # random_name = random.randint(0, 1000)
+        # self.scene.scene.add_geometry(f"lidar_{random_name}", pcd, mat)
 
     def _on_menu_show_settings(self):
         pass
@@ -359,6 +401,10 @@ class CARLA2NMR_App:
                 gui.Application.instance.post_to_main_thread(self.window, lambda idx=idx, mesh=mesh, mat=mat: self.update_pose(idx, mesh, mat))
         
         threading.Thread(target=run_icp).start()
+
+    #TODO: Implement gsplat training 
+    def _run_gsplat_training(self):
+        pass
 
     def update_pose(self, idx, mesh, mat):
         self.scene.scene.remove_geometry(f"est_pose_{idx}")
