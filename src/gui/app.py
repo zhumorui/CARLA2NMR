@@ -6,7 +6,6 @@ import threading
 import os
 import numpy as np
 from src.model.model import Model
-from src.GS_SLAM.entities.gaussian_slam import GaussianSLAM
 
 isMacOS = (platform.system() == "Darwin")
 
@@ -306,6 +305,7 @@ class CARLA2NMR_App:
         self.window.show_dialog(dialog)
 
     def _run_gaussian_slam(self):
+        from src.GS_SLAM.entities.gaussian_slam import GaussianSLAM
         print(os.getcwd())
         if self.model is None:
             self._show_error_dialog("Error", "Please load model first!")
