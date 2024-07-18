@@ -24,7 +24,13 @@ cd CARLA2NMR
 ```bash
 pip install -r requirements.txt
 ```
-4. Run the app:
+4. Install kiss-icp Python API:
+```bash
+git clone git@github.com:zhumorui/kiss-icp.git
+
+```
+
+5. Run the app:
 ```bash
 python src/main.py
 ```
