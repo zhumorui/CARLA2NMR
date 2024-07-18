@@ -11,6 +11,7 @@ CARLA2NMR Viewer is an application designed to support the visualization of data
 - **KISS-ICP LiDAR Odometry**: LiDAR odometry using KISS-ICP.
 
 ## Usage
+This project requires Python 3.8+. To run the application, follow the steps below:
 1. Clone the repository:
 ```bash
 git clone https://github.com/zhumorui/CARLA2NMR.git
@@ -37,3 +38,12 @@ python src/main.py
 <p align="center">
   <img src="assets/poses_vis.gif" alt="Visualize images and camera poses" >
 </p>
+
+## Acknowledgements
+I thank the authors of the following repositories for their contributions to this project:
+- [viser](https://viser.studio/latest/)
+- [gsplat](https://github.com/nerfstudio-project/gsplat)
+- [colmap](https://github.com/colmap/colmap)
+- [kiss-icp](https://github.com/PRBonn/kiss-icp)
+- [nerfview](https://github.com/hangg7/nerfview)
+- [Gaussian-SLAM](https://github.com/VladimirYugay/Gaussian-SLAM)
