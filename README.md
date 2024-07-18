@@ -27,6 +27,8 @@ pip install -r requirements.txt
 4. Install kiss-icp Python API:
 ```bash
 git clone git@github.com:zhumorui/kiss-icp.git
+cd kiss-icp
+make editable 
 
 ```
 
