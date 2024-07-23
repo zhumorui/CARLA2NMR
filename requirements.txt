@@ -7,4 +7,6 @@ gsplat~=1.1.0
 torchmetrics
 nerfview
 tensorboard
-git+https://github.com/zhumorui/pycolmap@14af48d7b076766365821a8f16f9deee34d79081
+imageio[ffmpeg]
+git+https://github.com/zhumorui/pycolmap@38a2be3a7059eb2b759591294b46c08b88222736
+git+https://github.com/nerfstudio-project/gsplat.git
