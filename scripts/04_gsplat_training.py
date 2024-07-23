@@ -5,6 +5,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
+import open3d as o3d
 import imageio
 import numpy as np
 import torch
@@ -39,11 +40,11 @@ class Config:
     ckpt: Optional[str] = None
 
     # Path to the Mip-NeRF 360 dataset
-    data_dir: str = "data/360_v2/garden"
+    data_dir: str = "data/carla_12_20_rgb_1_1"
     # Downsample factor for the dataset
-    data_factor: int = 4
+    data_factor: int = 1
     # Directory to save results
-    result_dir: str = "results/garden"
+    result_dir: str = "results/carla"
     # Every N images there is a test image
     test_every: int = 8
     # Random crop size for training  (experimental)
@@ -229,13 +230,26 @@ class Runner:
         # Tensorboard
         self.writer = SummaryWriter(log_dir=f"{cfg.result_dir}/tb")
 
-        # Load data: Training data should contain initial points and colors.
+        # Load data: Training data should contain initial points and colors.(can be from Lidar point cloud)
         self.parser = Parser(
             data_dir=cfg.data_dir,
             factor=cfg.data_factor,
             normalize=True,
             test_every=cfg.test_every,
         )
+        
+        #TODO: Load lidar point cloud data (with cropped region and RGB values)
+        """
+        should be the following data format:
+            points = manager.points3D.astype(np.float32)
+            points_rgb = manager.point3D_colors.astype(np.uint8)
+        """
+        pcd = o3d.io.read_point_cloud("data/carla_12_20_rgb_1_1/lidar/0001.ply")
+        points = np.asarray(pcd.points)
+        rgb = np.asarray(pcd.colors)
+
+
+
         self.trainset = Dataset(
             self.parser,
             split="train",
@@ -249,8 +263,8 @@ class Runner:
         # Model
         feature_dim = 32 if cfg.app_opt else None
         self.splats, self.optimizers = create_splats_with_optimizers(
-            torch.from_numpy(self.parser.points).float(),
-            torch.from_numpy(self.parser.points_rgb / 255.0).float(),
+            torch.from_numpy(points).float(),
+            torch.from_numpy(rgb / 255.0).float(),
             scene_scale=self.scene_scale,
             sh_degree=cfg.sh_degree,
             init_opacity=cfg.init_opa,

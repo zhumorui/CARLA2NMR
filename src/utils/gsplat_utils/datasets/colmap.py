@@ -50,7 +50,7 @@ class Parser:
         manager = SceneManager(colmap_dir)
         manager.load_cameras()
         manager.load_images()
-        manager.load_points3D()
+        # manager.load_points3D()
 
         # Extract extrinsic matrices in world-to-camera format.
         imdata = manager.images
@@ -151,34 +151,34 @@ class Parser:
         image_paths = [os.path.join(image_dir, colmap_to_image[f]) for f in image_names]
 
         # 3D points and {image_name -> [point_idx]}
-        points = manager.points3D.astype(np.float32)
-        points_err = manager.point3D_errors.astype(np.float32)
-        points_rgb = manager.point3D_colors.astype(np.uint8)
-        point_indices = dict()
+        # points = manager.points3D.astype(np.float32)
+        # points_err = manager.point3D_errors.astype(np.float32)
+        # points_rgb = manager.point3D_colors.astype(np.uint8)
+        # point_indices = dict()
 
-        image_id_to_name = {v: k for k, v in manager.name_to_image_id.items()}
-        for point_id, data in manager.point3D_id_to_images.items():
-            for image_id, _ in data:
-                image_name = image_id_to_name[image_id]
-                point_idx = manager.point3D_id_to_point3D_idx[point_id]
-                point_indices.setdefault(image_name, []).append(point_idx)
-        point_indices = {
-            k: np.array(v).astype(np.int32) for k, v in point_indices.items()
-        }
+        # image_id_to_name = {v: k for k, v in manager.name_to_image_id.items()}
+        # for point_id, data in manager.point3D_id_to_images.items():
+        #     for image_id, _ in data:
+        #         image_name = image_id_to_name[image_id]
+        #         point_idx = manager.point3D_id_to_point3D_idx[point_id]
+        #         point_indices.setdefault(image_name, []).append(point_idx)
+        # point_indices = {
+        #     k: np.array(v).astype(np.int32) for k, v in point_indices.items()
+        # }
 
         # Normalize the world space.
-        if normalize:
-            T1 = similarity_from_cameras(camtoworlds)
-            camtoworlds = transform_cameras(T1, camtoworlds)
-            points = transform_points(T1, points)
+        # if normalize:
+        #     T1 = similarity_from_cameras(camtoworlds)
+        #     camtoworlds = transform_cameras(T1, camtoworlds)
+        #     points = transform_points(T1, points)
 
-            T2 = align_principle_axes(points)
-            camtoworlds = transform_cameras(T2, camtoworlds)
-            points = transform_points(T2, points)
+        #     T2 = align_principle_axes(points)
+        #     camtoworlds = transform_cameras(T2, camtoworlds)
+        #     points = transform_points(T2, points)
 
-            transform = T2 @ T1
-        else:
-            transform = np.eye(4)
+        #     transform = T2 @ T1
+        # else:
+        #     transform = np.eye(4)
 
         self.image_names = image_names  # List[str], (num_images,)
         self.image_paths = image_paths  # List[str], (num_images,)
@@ -187,11 +187,11 @@ class Parser:
         self.Ks_dict = Ks_dict  # Dict of camera_id -> K
         self.params_dict = params_dict  # Dict of camera_id -> params
         self.imsize_dict = imsize_dict  # Dict of camera_id -> (width, height)
-        self.points = points  # np.ndarray, (num_points, 3)
-        self.points_err = points_err  # np.ndarray, (num_points,)
-        self.points_rgb = points_rgb  # np.ndarray, (num_points, 3)
-        self.point_indices = point_indices  # Dict[str, np.ndarray], image_name -> [M,]
-        self.transform = transform  # np.ndarray, (4, 4)
+        # self.points = points  # np.ndarray, (num_points, 3)
+        # self.points_err = points_err  # np.ndarray, (num_points,)
+        # self.points_rgb = points_rgb  # np.ndarray, (num_points, 3)
+        # self.point_indices = point_indices  # Dict[str, np.ndarray], image_name -> [M,]
+        # self.transform = transform  # np.ndarray, (4, 4)
 
         # undistortion
         self.mapx_dict = dict()

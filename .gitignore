@@ -5,6 +5,9 @@
 output/
 outputs/
 
+# submodules
+submodules/
+
 # MacOS
 .DS_store
 
