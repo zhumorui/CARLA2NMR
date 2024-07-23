@@ -13,6 +13,7 @@ class Model:
     Class to load a COLMAP model and provide some functionalities to work with it.
     """
     def __init__(self,model_path, ext=None):
+        self.path = model_path
         self.cameras = []
         self.poses = []
         self.images = []

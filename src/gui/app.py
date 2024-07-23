@@ -108,6 +108,11 @@ class CARLA2NMR_App:
         self._button.set_on_clicked(self._run_kiss_icp)
         self._pannel.add_child(self._button)
 
+        # Set gsplat training button
+        self._button = gui.Button("Run gsplat Training")
+        self._button.set_on_clicked(self._run_gsplat_training)
+        self._pannel.add_child(self._button)
+
 
         # 布局回调函数
         self.window.set_on_layout(self._on_layout)
@@ -404,7 +409,38 @@ class CARLA2NMR_App:
 
     #TODO: Implement gsplat training 
     def _run_gsplat_training(self):
-        pass
+        if self.model is None:
+            self._show_error_dialog("Error", "Please load model first!")
+            return
+        
+        from utils.gsplat_utils.gsplat_training import Runner, Config
+        import tyro
+        import torch
+        import time
+
+
+        cfg = tyro.cli(Config)
+        cfg.data_dir = self.model.path
+        cfg.adjust_steps(cfg.steps_scaler)
+
+        # get lidar point cloud
+        lidar_pcd = self.model.add_lidar(0)
+
+        runner = Runner(cfg, lidar_pcd=lidar_pcd)
+        if cfg.ckpt is not None:
+            # run eval only
+            ckpt = torch.load(cfg.ckpt, map_location=runner.device)
+            for k in runner.splats.keys():
+                runner.splats[k].data = ckpt["splats"[k]]
+            runner.eval(step=ckpt["step"])
+            runner.render_traj(step=ckpt["step"])
+        else:
+            runner.train()
+
+        if not cfg.disable_viewer:
+            print("Viewer running... Ctrl+C to exit.")
+            time.sleep(1000000)
+
 
     def update_pose(self, idx, mesh, mat):
         self.scene.scene.remove_geometry(f"est_pose_{idx}")
