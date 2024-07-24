@@ -68,7 +68,7 @@ graph TD
     end
 
     subgraph G[Gaussian Splatting]
-      G1[traning]
+      G1[Training]
       G2[Combine Multiple Trajectories]
     end
     
