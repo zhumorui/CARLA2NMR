@@ -7,9 +7,10 @@ CARLA2NMR Viewer is an application designed to support the visualization of data
 - **COLMAP Format Support**: Load and visualize data in COLMAP format.
 - **LiDAR Point Cloud Visualization**: Display full LiDAR point clouds as well as cropped point clouds based on camera POV.
 - **Camera Pose Visualization**: Show camera poses from the loaded data.
-- **Gaussian SLAM**: In-progress feature to support Gaussian SLAM.
-- **KISS-ICP LiDAR Odometry**: LiDAR odometry using KISS-ICP.
+- **KISS-ICP LiDAR Odometry**: LiDAR odometry using [kiss-icp](https://github.com/PRBonn/kiss-icp).
 - **Gaussian Splatting Training**: Gaussian Splatting Training with [gsplat](https://github.com/nerfstudio-project/gsplat) backend.
+  - **Scale Regularization**: Preventing long, spikey gaussians by proposing a scale regularizer that encourages gaussians to be more evenly shaped. For more details, refer to  [splatfacto-nerfstudio](https://github.com/nerfstudio-project/gsplat) and [PhysGaussian](https://xpandora.github.io/PhysGaussian/).
+  - **Visualization of Training 3DGS**: Support rendering and training 3DGS in web-based viewer. For more details, refer to [nerfview](https://github.com/hangg7/nerfview).
 
 ## Usage
 This project requires Python 3.8+. To run the application, follow the steps below:
@@ -90,6 +91,9 @@ graph TD
 <p align="center">
   <img src="assets/gs-training.gif" alt="Gaussian Splatting training with gsplat backend" >
 </p>
+
+## Future Work
+- **Gaussian SLAM**: support Gaussian SLAM.
 
 
 ## Acknowledgements
