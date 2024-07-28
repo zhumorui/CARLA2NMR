@@ -16,6 +16,7 @@ class Model:
         self.path = model_path
         self.cameras = []
         self.poses = []
+        self.estimated_poses = []
         self.images = []
         self.points3D = []
         self.masks = []

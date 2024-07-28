@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 
+
 def kitti_to_colmap(kitti_file_path, colmap_file_path):
     # Read KITTI formatted data
     with open(kitti_file_path, 'r') as f:
@@ -44,8 +45,3 @@ def kitti_to_colmap(kitti_file_path, colmap_file_path):
             f.write(' '.join(map(str, line)) + '\n')
             # Add blank line
             f.write('\n')
-
-if __name__ == '__main__':
-    kitti_file_path = 'results/2024-06-24_09-49-31/lidar_poses_kitti.txt'
-    colmap_file_path = 'images.txt'
-    kitti_to_colmap(kitti_file_path, colmap_file_path)

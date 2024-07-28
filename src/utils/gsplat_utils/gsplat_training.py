@@ -140,6 +140,10 @@ class Config:
     # Save training images to tensorboard
     tb_save_image: bool = False
 
+    # scale regularization parameters
+    use_scale_regularization: bool = True
+    max_gauss_ratio: float = 1.5  
+
     def adjust_steps(self, factor: float):
         self.eval_steps = [int(i * factor) for i in self.eval_steps]
         self.save_steps = [int(i * factor) for i in self.save_steps]
@@ -211,11 +215,12 @@ def create_splats_with_optimizers(
 class Runner:
     """Engine for training and testing."""
 
-    def __init__(self, cfg: Config, lidar_pcd) -> None:
+    def __init__(self, cfg: Config, lidar_pcd, poses) -> None:
         set_random_seed(42)
 
         self.cfg = cfg
         self.lidar_pcd = lidar_pcd
+        self.poses = poses
         self.device = "cuda"
 
         # Where to dump results.
@@ -322,6 +327,32 @@ class Runner:
                 mode="training",
             )
 
+        # Extract batched wxyzs (quaternions) and positions
+        batched_wxyzs = np.array([pose[0] for pose in self.poses])  # Extract qvecs
+        batched_positions = np.array([pose[1] for pose in self.poses])  # Extract tvecs
+
+        # Call the add_batched_axes method with the extracted data
+        self.server.scene.add_batched_axes(
+            name="BatchedAxes",
+            batched_wxyzs=batched_wxyzs,
+            batched_positions=batched_positions,
+            axes_length=0.5,
+            axes_radius=0.025,
+            wxyz=(1.0, 0.0, 0.0, 0.0),  # Optional, default value
+            position=(0.0, 0.0, 0.0),  # Optional, default value
+            visible=True  # Optional, default value
+        )
+
+        # for idx, pose in enumerate(self.poses):
+        #     qvec = pose[0]  # img.qvec
+        #     tvec = pose[1]  # img.tvec
+            
+        #     self.server.scene.add_frame(
+        #         name=f"CAMERA_{idx}",
+        #         wxyz=qvec,
+        #         position=tvec,
+        #     )
+
         # Running stats for prunning & growing.
         n_gauss = len(self.splats["means3d"])
         self.running_stats = {
@@ -387,15 +418,15 @@ class Runner:
         max_steps = cfg.max_steps
         init_step = 0
 
-        scheulers = [
-            # means3d has a learning rate schedule, that end at 0.01 of the initial value
+        schedulers = [
+            # means3d has a learning rate schedule, that ends at 0.01 of the initial value
             torch.optim.lr_scheduler.ExponentialLR(
                 self.optimizers[0], gamma=0.01 ** (1.0 / max_steps)
             ),
         ]
         if cfg.pose_opt:
             # pose optimization has a learning rate schedule
-            scheulers.append(
+            schedulers.append(
                 torch.optim.lr_scheduler.ExponentialLR(
                     self.pose_optimizers[0], gamma=0.01 ** (1.0 / max_steps)
                 )
@@ -478,6 +509,24 @@ class Runner:
                 pixels.permute(0, 3, 1, 2), colors.permute(0, 3, 1, 2)
             )
             loss = l1loss * (1.0 - cfg.ssim_lambda) + ssimloss * cfg.ssim_lambda
+            
+            # Scale regularization, from nerfstudio
+            # See more details in: https://github.com/nerfstudio-project/nerfstudio/blob/3a46c4274a54e5470ed7b33d85af147ac3105f02/nerfstudio/models/splatfacto.py#L872
+            if cfg.use_scale_regularization and step % 10 == 0:
+                scale_exp = torch.exp(self.splats["scales"])
+                scale_reg = (
+                    torch.maximum(
+                        scale_exp.amax(dim=-1) / scale_exp.amin(dim=-1),
+                        torch.tensor(cfg.max_gauss_ratio, device=device),
+                    )
+                    - cfg.max_gauss_ratio
+                )
+                scale_reg = 0.1 * scale_reg.mean()
+            else:
+                scale_reg = torch.tensor(0.0, device=device)
+
+            loss += scale_reg
+
             if cfg.depth_loss:
                 # query depths from depth map
                 points = torch.stack(
@@ -500,13 +549,14 @@ class Runner:
 
             loss.backward()
 
-            desc = f"loss={loss.item():.3f}| " f"sh degree={sh_degree_to_use}| "
+            desc = f"loss={loss.item():.3f}| sh degree={sh_degree_to_use}| "
             if cfg.depth_loss:
                 desc += f"depth loss={depthloss.item():.6f}| "
             if cfg.pose_opt and cfg.pose_noise:
                 # monitor the pose error if we inject noise
                 pose_err = F.l1_loss(camtoworlds_gt, camtoworlds)
                 desc += f"pose err={pose_err.item():.6f}| "
+            desc += f"scale reg={scale_reg.item():.6f}| "  # Add scale regularization to description
             pbar.set_description(desc)
 
             if cfg.tb_every > 0 and step % cfg.tb_every == 0:
@@ -514,6 +564,7 @@ class Runner:
                 self.writer.add_scalar("train/loss", loss.item(), step)
                 self.writer.add_scalar("train/l1loss", l1loss.item(), step)
                 self.writer.add_scalar("train/ssimloss", ssimloss.item(), step)
+                self.writer.add_scalar("train/scale_reg", scale_reg.item(), step)  # Add scale regularization to TensorBoard
                 self.writer.add_scalar(
                     "train/num_GS", len(self.splats["means3d"]), step
                 )
@@ -563,7 +614,7 @@ class Runner:
                     # prune GSs
                     is_prune = torch.sigmoid(self.splats["opacities"]) < cfg.prune_opa
                     if step > cfg.reset_every:
-                        # The official code also implements sreen-size pruning but
+                        # The official code also implements screen-size pruning but
                         # it's actually not being used due to a bug:
                         # https://github.com/graphdeco-inria/gaussian-splatting/issues/123
                         is_too_big = (
@@ -610,7 +661,7 @@ class Runner:
             for optimizer in self.app_optimizers:
                 optimizer.step()
                 optimizer.zero_grad(set_to_none=True)
-            for scheduler in scheulers:
+            for scheduler in schedulers:
                 scheduler.step()
 
             # save checkpoint

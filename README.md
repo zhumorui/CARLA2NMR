@@ -45,6 +45,8 @@ graph TD
     A[Start] --> B
     B --> C
     C --> D
+    D1 --> D2
+    D2 --> D3
     D --> E
     E & C --> G
     G1 --> |Gaussian Splatting Registration|G2
@@ -60,8 +62,9 @@ graph TD
     end
 
     subgraph D[Lidar Preprocessing]
-      D1[Cropping Based on POV]
-      D2[Color Mapping]
+      D1["Coordinate transformation (Optional)"]
+      D2[Cropping Based on POV]
+      D3[Color Mapping]
     end
 
     subgraph E[Lidar Odometry]

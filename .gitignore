@@ -8,6 +8,9 @@ outputs/
 # submodules
 submodules/
 
+# kiss-icp/
+kiss-icp/
+
 # MacOS
 .DS_store
 

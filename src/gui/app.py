@@ -6,6 +6,7 @@ import threading
 import os
 import numpy as np
 from src.model.model import Model
+from src.utils.colmap.python.read_write_model import rotmat2qvec
 
 isMacOS = (platform.system() == "Darwin")
 
@@ -309,6 +310,29 @@ class CARLA2NMR_App:
         dialog.add_child(layout)
         self.window.show_dialog(dialog)
 
+
+    def _show_warning_dialog(self, title, message):
+        dialog = gui.Dialog(title)
+        em = self.window.theme.font_size
+        margins = gui.Margins(em, em, em, em)
+        layout = gui.Vert(0, margins)
+        
+        label = gui.Label(message)
+        layout.add_child(label)
+        
+        button_layout = gui.Horiz(0.25 * em)
+        button_layout.add_stretch()
+
+        ok_button = gui.Button("OK")
+        ok_button.set_on_clicked(self.window.close_dialog)
+        button_layout.add_child(ok_button)
+
+        layout.add_child(button_layout)
+        
+        dialog.add_child(layout)
+        self.window.show_dialog(dialog)
+
+
     def _run_gaussian_slam(self):
         from src.GS_SLAM.entities.gaussian_slam import GaussianSLAM
         print(os.getcwd())
@@ -396,6 +420,16 @@ class CARLA2NMR_App:
                 # apply w2c transformation
                 est_pose = transform @ est_pose
 
+                # Rotation to quaternion
+                R = est_pose[:3, :3]
+                
+                qvec = rotmat2qvec(R)
+                tvec = est_pose[:3, 3]
+
+                #TODO: add camera id to the estimated poses
+                # Save the estimated poses
+                self.model.estimated_poses.append((qvec, tvec, 1))
+
                 # draw the estimated pose with coordinate
                 mesh = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.5)
                 mesh.transform(est_pose)
@@ -413,33 +447,41 @@ class CARLA2NMR_App:
             self._show_error_dialog("Error", "Please load model first!")
             return
         
-        from utils.gsplat_utils.gsplat_training import Runner, Config
-        import tyro
-        import torch
-        import time
+        def run_training():
+            from utils.gsplat_utils.gsplat_training import Runner, Config
+            import tyro
+            import torch
+            import time
 
+            cfg = tyro.cli(Config)
+            cfg.data_dir = self.model.path
+            cfg.adjust_steps(cfg.steps_scaler)
 
-        cfg = tyro.cli(Config)
-        cfg.data_dir = self.model.path
-        cfg.adjust_steps(cfg.steps_scaler)
+            # get lidar point cloud
+            lidar_pcd = self.model.add_lidar(0)
 
-        # get lidar point cloud
-        lidar_pcd = self.model.add_lidar(0)
+            #TODO: support training 3DGS with estimated poses
+            if self.model.estimated_poses == []:
+                self._show_warning_dialog("Warning", "Estimated camera poses couldn't be found, \nUsing groud truth poeses instead!")
+                runner = Runner(cfg, lidar_pcd=lidar_pcd, poses=self.model.poses)
+            else:
+                runner = Runner(cfg, lidar_pcd=lidar_pcd, poses=self.model.estimated_poses)
 
-        runner = Runner(cfg, lidar_pcd=lidar_pcd)
-        if cfg.ckpt is not None:
-            # run eval only
-            ckpt = torch.load(cfg.ckpt, map_location=runner.device)
-            for k in runner.splats.keys():
-                runner.splats[k].data = ckpt["splats"[k]]
-            runner.eval(step=ckpt["step"])
-            runner.render_traj(step=ckpt["step"])
-        else:
-            runner.train()
+            if cfg.ckpt is not None:
+                # run eval only
+                ckpt = torch.load(cfg.ckpt, map_location=runner.device)
+                for k in runner.splats.keys():
+                    runner.splats[k].data = ckpt["splats"[k]]
+                runner.eval(step=ckpt["step"])
+                runner.render_traj(step=ckpt["step"])
+            else:
+                runner.train()
 
-        if not cfg.disable_viewer:
-            print("Viewer running... Ctrl+C to exit.")
-            time.sleep(1000000)
+            if not cfg.disable_viewer:
+                print("Viewer running... Ctrl+C to exit.")
+                time.sleep(1000000)
+        
+        threading.Thread(target=run_training).start()
 
 
     def update_pose(self, idx, mesh, mat):
