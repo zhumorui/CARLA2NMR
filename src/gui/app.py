@@ -6,7 +6,7 @@ import threading
 import os
 import numpy as np
 from src.model.model import Model
-from src.utils.colmap.python.read_write_model import rotmat2qvec
+from src.utils.colmap.python.read_write_model import rotmat2qvec, qvec2rotmat
 
 isMacOS = (platform.system() == "Darwin")
 
@@ -481,7 +481,60 @@ class CARLA2NMR_App:
                 print("Viewer running... Ctrl+C to exit.")
                 time.sleep(1000000)
         
-        threading.Thread(target=run_training).start()
+        # threading.Thread(target=run_training).start()
+
+        #TEST: vis poses in viser
+        import viser
+        server = viser.ViserServer()
+
+
+        # vis point cloud
+        lidar_pcd = self.model.add_lidar(0)
+        points = np.asarray(lidar_pcd.points)
+        colors = np.asarray(lidar_pcd.colors)
+
+        server.scene.add_point_cloud(name="Lidar",
+            points=points,
+            colors=colors,
+            point_size=0.01,
+            visible=True
+        )
+
+
+        # vis poses
+        if self.model.estimated_poses == []:
+
+            batched_wxyzs = []
+            batched_positions = []
+        
+            for pose in self.model.poses:
+                R = qvec2rotmat(pose[0])
+                t = pose[1]
+                
+                # invert
+                t = -R.T @ t
+                R = R.T
+
+                wxyz = rotmat2qvec(R)
+                batched_positions.append(t)
+                batched_wxyzs.append(wxyz)
+
+            batched_wxyzs = np.array(batched_wxyzs)
+            batched_positions = np.array(batched_positions)
+
+        else:
+            batched_wxyzs = np.array([pose[0] for pose in self.model.estimated_poses])
+            batched_positions = np.array([pose[1] for pose in self.model.estimated_poses])
+
+        server.scene.add_batched_axes(name="BatchedAxes",
+            batched_wxyzs=batched_wxyzs,
+            batched_positions=batched_positions,
+            axes_length=0.5,
+            axes_radius=0.025,
+            wxyz=(1.0, 0.0, 0.0, 0.0),  # Optional, default value
+            position=(0.0, 0.0, 0.0),  # Optional, default value
+            visible=True  # Optional, default value
+        )
 
 
     def update_pose(self, idx, mesh, mat):
