@@ -1,6 +1,8 @@
 imageio
 plyfile
-torch==2.3.1+cu118
+open3d
+opencv-python
+torch
 torchvision
 viser>=0.2.1
 protobuf<5.0.0 # for tensorboard
@@ -9,4 +11,4 @@ nerfview
 tensorboard
 imageio[ffmpeg]
 git+https://github.com/zhumorui/pycolmap@38a2be3a7059eb2b759591294b46c08b88222736 # pycolmap with some modifications
-git+https://github.com/nerfstudio-project/gsplat.git # install gsplat from github to aviod the errors while training 
+# git+https://github.com/nerfstudio-project/gsplat.git # install gsplat from github to aviod the errors while training 
