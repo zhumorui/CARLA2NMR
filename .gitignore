@@ -5,6 +5,9 @@
 output/
 outputs/
 
+# CONDA ENV CONFIG
+.CONDA_ENV
+
 # submodules
 submodules/
 
