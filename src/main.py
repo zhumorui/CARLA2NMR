@@ -1,6 +1,8 @@
 # main.py
+import os
 import sys
-sys.path.append("/home/morin/ZHITAI_SSD/projects/CARLA2NMR")
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+
 from open3d.visualization import gui
 from src.gui.app import CARLA2NMR_App
 

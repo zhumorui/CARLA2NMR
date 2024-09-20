@@ -31,6 +31,9 @@ from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
 import nerfview
 
+from src.utils.colmap.python.read_write_model import rotmat2qvec, qvec2rotmat
+import time
+
 
 @dataclass
 class Config:
@@ -237,6 +240,17 @@ class Runner:
         # Tensorboard
         self.writer = SummaryWriter(log_dir=f"{cfg.result_dir}/tb")
 
+        # # TODO: ensure poses is not None
+        # # assert self.poses is not None, "Poses cannot be None"
+        # if self.poses is not None:
+        #     self.parser = Parser(
+        #         data_dir=cfg.data_dir,
+        #         factor=cfg.data_factor,
+        #         normalize=True,
+        #         test_every=cfg.test_every,
+        #         estimated_w2c=self.poses
+        #     )
+        # else:
         # Load data: Training data should contain initial points and colors.(can be from Lidar point cloud)
         self.parser = Parser(
             data_dir=cfg.data_dir,
@@ -244,7 +258,7 @@ class Runner:
             normalize=True,
             test_every=cfg.test_every,
         )
-        
+                
         # Load lidar point cloud data (with cropped region and RGB values) and convert to numpy array
         points = np.asarray(lidar_pcd.points)
         rgb = np.asarray(lidar_pcd.colors)
@@ -264,7 +278,7 @@ class Runner:
         feature_dim = 32 if cfg.app_opt else None
         self.splats, self.optimizers = create_splats_with_optimizers(
             torch.from_numpy(points).float(),
-            torch.from_numpy(rgb / 255.0).float(),
+            torch.from_numpy(rgb).float(),
             scene_scale=self.scene_scale,
             sh_degree=cfg.sh_degree,
             init_opacity=cfg.init_opa,
@@ -328,20 +342,43 @@ class Runner:
             )
 
         # Extract batched wxyzs (quaternions) and positions
-        batched_wxyzs = np.array([pose[0] for pose in self.poses])  # Extract qvecs
-        batched_positions = np.array([pose[1] for pose in self.poses])  # Extract tvecs
+        # batched_wxyzs = np.array([pose[0] for pose in self.poses])  # Extract qvecs
+        # batched_positions = np.array([pose[1] for pose in self.poses])  # Extract tvecs
 
-        # Call the add_batched_axes method with the extracted data
-        self.server.scene.add_batched_axes(
-            name="BatchedAxes",
-            batched_wxyzs=batched_wxyzs,
-            batched_positions=batched_positions,
-            axes_length=0.5,
-            axes_radius=0.025,
-            wxyz=(1.0, 0.0, 0.0, 0.0),  # Optional, default value
-            position=(0.0, 0.0, 0.0),  # Optional, default value
-            visible=True  # Optional, default value
-        )
+        # # Call the add_batched_axes method with the extracted data
+        # self.server.scene.add_batched_axes(
+        #     name="BatchedAxes",
+        #     batched_wxyzs=batched_wxyzs,
+        #     batched_positions=batched_positions,
+        #     axes_length=0.5,
+        #     axes_radius=0.025,
+        #     wxyz=(1.0, 0.0, 0.0, 0.0),  # Optional, default value
+        #     position=(0.0, 0.0, 0.0),  # Optional, default value
+        #     visible=True  # Optional, default value
+        # )
+
+
+        for index, data in enumerate(self.trainset):
+            c2w= data["camtoworld"].numpy()
+            R = c2w[:3, :3]
+            t = c2w[:3, 3]
+
+            # R to quaternion and inverse
+            qvec_inv = rotmat2qvec(R)
+
+            # Add camera to the scene
+            self.server.scene.add_frame(f"train_camera{index}", wxyz=qvec_inv, position=t)
+
+        # for index, data in enumerate(self.valset):
+        #     c2w= data["camtoworld"].numpy()
+        #     R = c2w[:3, :3]
+        #     t = c2w[:3, 3]
+
+        #     # R to quaternion and inverse
+        #     qvec_inv = rotmat2qvec(R)
+
+        #     # Add camera to the scene
+        #     self.server.scene.add_frame(f"val_camera{index}", wxyz=qvec_inv, position=t)
 
         # for idx, pose in enumerate(self.poses):
         #     qvec = pose[0]  # img.qvec

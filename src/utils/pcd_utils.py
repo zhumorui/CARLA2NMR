@@ -14,18 +14,18 @@ def filter_point_cloud_with_image(pcd_path, image_path, camera):
 
     # Optional: Perform necessary point cloud transformation if needed
     # Reverse y
-    T = np.array([[1, 0, 0, 0],
-                  [0, -1, 0, 0],
-                  [0, 0, 1, 0],
-                  [0, 0, 0, 1]])
-    pcd.transform(T)
+    # T = np.array([[1, 0, 0, 0],
+    #               [0, -1, 0, 0],
+    #               [0, 0, 1, 0],
+    #               [0, 0, 0, 1]])
+    # pcd.transform(T)
 
-    # (x, y, z) -> (z, -x, -y) coordinate transformation
-    T = np.array([[0, -1, 0, 0],
-                  [0, 0, -1, 0],
-                  [1, 0, 0, 0],
-                  [0, 0, 0, 1]])
-    pcd.transform(T)
+    # # (x, y, z) -> (z, -x, -y) coordinate transformation
+    # T = np.array([[0, -1, 0, 0],
+    #               [0, 0, -1, 0],
+    #               [1, 0, 0, 0],
+    #               [0, 0, 0, 1]])
+    # pcd.transform(T)
 
     # Get the camera intrinsics
     cam = camera

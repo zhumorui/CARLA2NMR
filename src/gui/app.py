@@ -6,6 +6,8 @@ import threading
 import os
 import numpy as np
 from src.model.model import Model
+from tqdm import tqdm
+from glob import glob
 from src.utils.colmap.python.read_write_model import rotmat2qvec, qvec2rotmat
 
 isMacOS = (platform.system() == "Darwin")
@@ -114,7 +116,11 @@ class CARLA2NMR_App:
         self._button.set_on_clicked(self._run_gsplat_training)
         self._pannel.add_child(self._button)
 
-
+        # Set export global point cloud button
+        self._button = gui.Button("Export Global Point Cloud")
+        self._button.set_on_clicked(self._export_global_point_cloud)
+        self._pannel.add_child(self._button)
+        
         # 布局回调函数
         self.window.set_on_layout(self._on_layout)
         self.window.add_child(self._pannel)
@@ -161,7 +167,7 @@ class CARLA2NMR_App:
             print(f"Load model successfully!\n{self.model}")
             self.window.close_dialog()
         except:
-            self._show_error_dialog("Error", f"Failed to load model!")
+            self._show_error_dialog("Error", f"-+-+ to load model!")
         
         # change working directory to original
         os.chdir(self.working_dir)
@@ -396,39 +402,63 @@ class CARLA2NMR_App:
         transform = self.model.get_transform(0)
 
         def run_icp():
+            Q = []
+            T = []
             for idx, result in enumerate(pipeline.run()):
                 # draw the estimated camera pose
                 est_pose = result["pose"]
 
                 # Optional: Perform necessary point cloud transformation if needed
                 # Reverse y
-                T = np.array([[1, 0, 0, 0],
-                            [0, -1, 0, 0],
-                            [0, 0, 1, 0],
-                            [0, 0, 0, 1]])
+                # transform = np.array([[1, 0, 0, 0],
+                #             [0, -1, 0, 0],
+                #             [0, 0, 1, 0],
+                #             [0, 0, 0, 1]])
                 
-                est_pose = T @ est_pose
+                # est_pose = transform @ est_pose
 
-                # (x, y, z) -> (z, -x, -y) coordinate transformation
-                T = np.array([[0, -1, 0, 0],
-                            [0, 0, -1, 0],
-                            [1, 0, 0, 0],
-                            [0, 0, 0, 1]])
+                # # (x, y, z) -> (z, -x, -y) coordinate transformation
+                # transform = np.array([[0, -1, 0, 0],
+                #             [0, 0, -1, 0],
+                #             [1, 0, 0, 0],
+                #             [0, 0, 0, 1]])
 
-                est_pose = T @ est_pose
+                # est_pose = transform @ est_pose
 
                 # apply w2c transformation
                 est_pose = transform @ est_pose
 
-                # Rotation to quaternion
-                R = est_pose[:3, :3]
-                
-                qvec = rotmat2qvec(R)
-                tvec = est_pose[:3, 3]
+                def get_pose_from_transform(T):
+                    # Extract the inverted rotation matrix and translation vector
+                    R_inv = T[:3, :3]
+                    t_inv = T[:3, 3]
+
+                    # Invert the rotation matrix to get the original rotation matrix
+                    R = R_inv.T
+
+                    # Compute the original translation vector
+                    tvec = -R @ t_inv
+
+                    # Convert the rotation matrix back to a quaternion vector
+                    qvec = rotmat2qvec(R)
+
+                    # -x, -y, -z
+                    # qvec[1:] = -qvec[1:]
+
+
+
+                    return qvec, tvec
+
+                qvec, tvec = get_pose_from_transform(est_pose)
+
+                # add qvec and tvec to the list
+                Q.append(qvec)
+                T.append(tvec)
 
                 #TODO: add camera id to the estimated poses
                 # Save the estimated poses
-                self.model.estimated_poses.append((qvec, tvec, 1))
+                # self.model.estimated_poses.append((qvec, tvec, 1))
+                self.model.estimated_poses.append(est_pose)
 
                 # draw the estimated pose with coordinate
                 mesh = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.5)
@@ -438,6 +468,27 @@ class CARLA2NMR_App:
                 
                 # Update the pose in the main thread
                 gui.Application.instance.post_to_main_thread(self.window, lambda idx=idx, mesh=mesh, mat=mat: self.update_pose(idx, mesh, mat))
+
+            # Save the estimated poses
+            with open('data/carla_12_20_rgb_1_1/sparse/0/images.txt', 'r') as f:
+                lines = f.readlines()
+                lines_out = []
+                # replace the estimated poses, Q for [1:4] and T for [4:7]
+                for idx, line in enumerate(lines):
+                    # skip the empty line
+                    if idx % 2 == 1:
+                        lines_out.append(line)
+                        continue
+
+                    line_values = line.split(' ')
+                    line_values[1:5] = [str(val) for val in Q[idx // 2].tolist()]
+                    line_values[5:8] = [str(val) for val in T[idx // 2].tolist()]
+                    lines_out.append(" ".join(line_values) + "\n")
+
+
+            with open('data/carla_12_20_rgb_1_1/sparse/0/images.txt', 'w') as f:
+                f.writelines(lines_out)
+
         
         threading.Thread(target=run_icp).start()
 
@@ -457,13 +508,21 @@ class CARLA2NMR_App:
             cfg.data_dir = self.model.path
             cfg.adjust_steps(cfg.steps_scaler)
 
-            # get lidar point cloud
-            lidar_pcd = self.model.add_lidar(0)
+            # get global lidar point cloud if available
+            global_pcd_ply = glob("data/carla_12_20_rgb_1_1/*.ply")
+            
+            if global_pcd_ply:
+                lidar_pcd = o3d.io.read_point_cloud(global_pcd_ply[0])
+                print("Global point cloud loaded!")
+            else:
+                lidar_pcd = self.model.add_lidar(0)
+                print("Global point cloud not found, using the first lidar point cloud instead!")
+
 
             #TODO: support training 3DGS with estimated poses
             if self.model.estimated_poses == []:
                 self._show_warning_dialog("Warning", "Estimated camera poses couldn't be found, \nUsing groud truth poeses instead!")
-                runner = Runner(cfg, lidar_pcd=lidar_pcd, poses=self.model.poses)
+                runner = Runner(cfg, lidar_pcd=lidar_pcd, poses=None)
             else:
                 runner = Runner(cfg, lidar_pcd=lidar_pcd, poses=self.model.estimated_poses)
 
@@ -481,69 +540,80 @@ class CARLA2NMR_App:
                 print("Viewer running... Ctrl+C to exit.")
                 time.sleep(1000000)
         
-        # threading.Thread(target=run_training).start()
+        threading.Thread(target=run_training).start()
 
         #TEST: vis poses in viser
-        import viser
-        server = viser.ViserServer()
+        # import viser
+        # server = viser.ViserServer()
 
 
-        # vis point cloud
-        lidar_pcd = self.model.add_lidar(0)
-        points = np.asarray(lidar_pcd.points)
-        colors = np.asarray(lidar_pcd.colors)
+        # # vis point cloud
+        # lidar_pcd = self.model.add_lidar(0)
+        # points = np.asarray(lidar_pcd.points)
+        # colors = np.asarray(lidar_pcd.colors)
 
-        server.scene.add_point_cloud(name="Lidar",
-            points=points,
-            colors=colors,
-            point_size=0.01,
-            visible=True
-        )
+        # server.scene.add_point_cloud(name="Lidar",
+        #     points=points,
+        #     colors=colors,
+        #     point_size=0.01,
+        #     visible=True
+        # )
 
 
-        # vis poses
-        if self.model.estimated_poses == []:
+        # # vis poses
+        # if self.model.estimated_poses == []:
 
-            batched_wxyzs = []
-            batched_positions = []
+        #     batched_wxyzs = []
+        #     batched_positions = []
         
-            for pose in self.model.poses:
-                R = qvec2rotmat(pose[0])
-                t = pose[1]
+        #     for pose in self.model.poses:
+        #         R = qvec2rotmat(pose[0])
+        #         t = pose[1]
                 
-                # invert
-                t = -R.T @ t
-                R = R.T
+        #         # invert
+        #         t = -R.T @ t
+        #         R = R.T
 
-                wxyz = rotmat2qvec(R)
-                batched_positions.append(t)
-                batched_wxyzs.append(wxyz)
+        #         wxyz = rotmat2qvec(R)
+        #         batched_positions.append(t)
+        #         batched_wxyzs.append(wxyz)
 
-            batched_wxyzs = np.array(batched_wxyzs)
-            batched_positions = np.array(batched_positions)
+        #     batched_wxyzs = np.array(batched_wxyzs)
+        #     batched_positions = np.array(batched_positions)
 
-        else:
-            batched_wxyzs = np.array([pose[0] for pose in self.model.estimated_poses])
-            batched_positions = np.array([pose[1] for pose in self.model.estimated_poses])
+        # else:
+        #     batched_wxyzs = np.array([pose[0] for pose in self.model.estimated_poses])
+        #     batched_positions = np.array([pose[1] for pose in self.model.estimated_poses])
 
-        server.scene.add_batched_axes(name="BatchedAxes",
-            batched_wxyzs=batched_wxyzs,
-            batched_positions=batched_positions,
-            axes_length=0.5,
-            axes_radius=0.025,
-            wxyz=(1.0, 0.0, 0.0, 0.0),  # Optional, default value
-            position=(0.0, 0.0, 0.0),  # Optional, default value
-            visible=True  # Optional, default value
-        )
+        # server.scene.add_batched_axes(name="BatchedAxes",
+        #     batched_wxyzs=batched_wxyzs,
+        #     batched_positions=batched_positions,
+        #     axes_length=0.5,
+        #     axes_radius=0.025,
+        #     wxyz=(1.0, 0.0, 0.0, 0.0),  # Optional, default value
+        #     position=(0.0, 0.0, 0.0),  # Optional, default value
+        #     visible=True  # Optional, default value
+        # )
 
 
     def update_pose(self, idx, mesh, mat):
         self.scene.scene.remove_geometry(f"est_pose_{idx}")
         self.scene.scene.add_geometry(f"est_pose_{idx}", mesh, mat)
 
-
-
-
+    def _export_global_point_cloud(self):
+        # Merge all point clouds and downsample
+        global_pcd = o3d.geometry.PointCloud()
         
+        for idx in tqdm(range(len(self.model.lidars)), desc="Merging point clouds"):
+            lidar_pcd = self.model.add_lidar(idx)
+            global_pcd += lidar_pcd
+
+        # Downsample
+        global_pcd = global_pcd.voxel_down_sample(voxel_size=0.05)
+
+        # Save the global point cloud
+        o3d.io.write_point_cloud("global_point_cloud.ply", global_pcd)
+
+        print("Saved as global_point_cloud.ply")
         
 

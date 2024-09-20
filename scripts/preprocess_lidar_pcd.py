@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import open3d as o3d
+from tqdm import tqdm
 
 def apply_transformations(ply_file_path, transformations):
     # Load the point cloud from the PLY file
@@ -43,7 +44,7 @@ def process_ply_files(input_folder, output_folder):
     os.makedirs(output_folder, exist_ok=True)
 
     # Process each PLY file in the input folder
-    for filename in os.listdir(input_folder):
+    for filename in tqdm(os.listdir(input_folder), desc="Preprocessing PLY files"):
         if filename.lower().endswith('.ply'):
             input_path = os.path.join(input_folder, filename)
             output_path = os.path.join(output_folder, filename)
@@ -53,9 +54,8 @@ def process_ply_files(input_folder, output_folder):
 
             # Save the transformed point cloud to the output folder
             o3d.io.write_point_cloud(output_path, transformed_pcd)
-            print(f"Processed {filename} and saved to {output_path}")
 
 if __name__ == "__main__":
-    input_folder = 'data/carla_12_20_rgb_1_1/lidar'  
-    output_folder = 'data/carla_12_20_rgb_1_1/aligned_lidar'
+    input_folder = 'data/carla_12_20_rgb_2_1/lidar'  
+    output_folder = 'data/carla_12_20_rgb_2_1/aligned_lidar'
     process_ply_files(input_folder, output_folder)

@@ -43,7 +43,10 @@ class Model:
         self.poses = [(img.qvec, img.tvec, img.camera_id) for img in images_info.values()]
         self.masks = sorted(glob(os.path.join(path, "mask", "*.png")))
         self.depth16 = sorted(glob(os.path.join(path, "depth_16", "*.png")))
-        self.lidars = sorted(glob(os.path.join(path, "lidar", "*.ply")))
+        if os.path.exists(os.path.join(path, "aligned_lidar")):
+            self.lidars = sorted(glob(os.path.join(path, "aligned_lidar", "*.ply")))
+        else:
+            self.lidars = sorted(glob(os.path.join(path, "lidar", "*.ply")))
 
     # add camera trajectories, add image textures if available
     def add_cameras(self, scale=1):
@@ -128,7 +131,10 @@ class Model:
 
         if True:
             filtered_pcd = filter_point_cloud_with_image(self.lidars[idx], self.images[idx], self.cameras[self.poses[idx][2]])
-            T = self.get_transform(idx)
+            if self.estimated_poses is not None:
+                T = self.estimated_poses[idx]
+            else:
+                T = self.get_transform(idx)
             filtered_pcd.transform(T)
         return filtered_pcd
 

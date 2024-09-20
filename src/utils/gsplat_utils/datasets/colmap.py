@@ -34,6 +34,7 @@ class Parser:
         factor: int = 1,
         normalize: bool = False,
         test_every: int = 8,
+        estimated_w2c: Optional[np.ndarray] = None,
     ):
         self.data_dir = data_dir
         self.factor = factor
@@ -115,6 +116,12 @@ class Parser:
             raise ValueError("No images found in COLMAP.")
         if not (type_ == 0 or type_ == 1):
             print(f"Warning: COLMAP Camera is not PINHOLE. Images have distortion.")
+
+        # Get extrinsic if estimated.
+        if estimated_w2c is not None:
+            # Use estimated extrinsics.
+            assert len(estimated_w2c) == len(w2c_mats)
+            w2c_mats = estimated_w2c
 
         w2c_mats = np.stack(w2c_mats, axis=0)
 
